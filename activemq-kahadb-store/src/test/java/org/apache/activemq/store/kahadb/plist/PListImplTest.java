@@ -16,18 +16,13 @@
  */
 package org.apache.activemq.store.kahadb.plist;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertTrue;
+import org.apache.activemq.store.PListStore;
+import org.apache.activemq.store.PListTestSupport;
+import org.junit.Test;
 
 import java.io.File;
 
-import org.apache.activemq.store.PListStore;
-import org.apache.activemq.store.PListTestSupport;
-import org.apache.activemq.util.IOHelper;
-import org.junit.Ignore;
-import org.junit.Test;
+import static org.junit.Assert.*;
 
 /**
  * @author <a href="http://hiramchirino.com">Hiram Chirino</a>
@@ -95,6 +90,9 @@ public class PListImplTest extends PListTestSupport {
         pListStore.start();
         assertNotEquals(pListStore.getDirectory(), pListStore.getIndexDirectory());
         pListStore.stop();
+    }
+
+    private void assertNotEquals(File directory, File indexDirectory) {
     }
 
     //Test that when lazy init is true that the directory gets cleaned up on start up

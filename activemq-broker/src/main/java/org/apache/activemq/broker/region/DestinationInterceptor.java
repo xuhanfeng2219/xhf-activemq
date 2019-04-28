@@ -23,6 +23,7 @@ import org.apache.activemq.command.ActiveMQDestination;
 
 /**
  * Represents an interceptor on destination instances.
+ *  表示目标实例上的拦截器。
  * 
  * 
  */

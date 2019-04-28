@@ -35,6 +35,13 @@ public interface MessageDispatchChannel {
      * all, it returns a message if it is available - if timeout>0 then it
      * blocks up to timeout amount of time. Expired messages will consumed by
      * this method.
+     *
+     * 用于获取排队的消息。
+     * 此方法阻止的时间量基于超时值。
+     * -如果超时==-1则阻塞直到收到消息。
+     * -如果超时==0那么它会尝试不阻塞，如果可用则返回一条消息。
+     * -如果超时>0则它会阻塞超时时间。
+     * 此方法将使用过期的消息。
      * 
      * @throws JMSException
      * @return null if we timeout or if the consumer is closed.

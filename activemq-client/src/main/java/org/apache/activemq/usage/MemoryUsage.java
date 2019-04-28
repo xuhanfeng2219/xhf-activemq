@@ -206,6 +206,10 @@ public class MemoryUsage extends Usage<MemoryUsage> {
         this.usage = usage;
     }
 
+    /**
+     * 设置jvm堆内存的使用百分比
+     * @param percentOfJvmHeap
+     */
     public void setPercentOfJvmHeap(int percentOfJvmHeap) {
         if (percentOfJvmHeap > 0) {
             setLimit(Math.round(Runtime.getRuntime().maxMemory() * percentOfJvmHeap / 100.0));

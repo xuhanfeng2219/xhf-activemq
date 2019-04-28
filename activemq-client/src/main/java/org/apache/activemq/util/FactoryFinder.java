@@ -5,9 +5,9 @@
  * The ASF licenses this file to You under the Apache License, Version 2.0
  * (the "License"); you may not use this file except in compliance with
  * the License.  You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -33,7 +33,7 @@ public class FactoryFinder {
      * can be changed out by calling the
      * {@link org.apache.activemq.util.FactoryFinder#setObjectFactory(org.apache.activemq.util.FactoryFinder.ObjectFactory)}
      * method with a custom implementation of ObjectFactory.
-     *
+     * <p>
      * The default ObjectFactory is typically changed out when running in a specialized container
      * environment where service discovery needs to be done via the container system.  For example,
      * in an OSGi scenario.
@@ -110,6 +110,7 @@ public class FactoryFinder {
                 try {
                     reader.close();
                 } catch (Exception e) {
+
                 }
             }
         }
@@ -141,11 +142,11 @@ public class FactoryFinder {
      * Creates a new instance of the given key
      *
      * @param key is the key to add to the path to find a text file containing
-     *                the factory name
+     *            the factory name
      * @return a newly created instance
      */
     public Object newInstance(String key) throws IllegalAccessException, InstantiationException, IOException, ClassNotFoundException {
-        return objectFactory.create(path+key);
+        return objectFactory.create(path + key);
     }
 
 

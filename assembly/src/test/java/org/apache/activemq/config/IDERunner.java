@@ -25,6 +25,9 @@ import java.io.File;
 /**
  * A helper class that can be used to start the full broker distro with default configuration
  * in an IDE. It can be helpful for debugging/testing externally provided test cases.
+ *
+ * 一个帮助程序类，可用于在IDE中使用默认配置启动完整代理程序发行版。
+ * 它可以帮助调试/测试外部提供的测试用例
  */
 public class IDERunner {
 

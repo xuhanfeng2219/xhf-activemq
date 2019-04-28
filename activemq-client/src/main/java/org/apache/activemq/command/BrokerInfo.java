@@ -29,6 +29,8 @@ import org.apache.activemq.util.MarshallingSupport;
  *
  * @openwire:marshaller code="2"
  *
+ * broker的配置
+ *
  */
 public class BrokerInfo extends BaseCommand {
     private static final String PASSIVE_SLAVE_KEY = "passiveSlave";

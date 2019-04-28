@@ -3221,6 +3221,11 @@ public abstract class MessageDatabase extends ServiceSupport implements BrokerSe
         return index;
     }
 
+    /**
+     * 创建日志
+     * @return
+     * @throws IOException
+     */
     protected Journal createJournal() throws IOException {
         Journal manager = new Journal();
         manager.setDirectory(directory);

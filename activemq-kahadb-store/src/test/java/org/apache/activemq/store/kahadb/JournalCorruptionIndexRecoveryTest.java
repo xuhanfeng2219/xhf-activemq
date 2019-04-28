@@ -16,28 +16,11 @@
  */
 package org.apache.activemq.store.kahadb;
 
-import static org.apache.activemq.store.kahadb.JournalCorruptionEofIndexRecoveryTest.drain;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-
-import java.io.File;
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.Collection;
-
-import javax.jms.Connection;
-import javax.jms.Destination;
-import javax.jms.Message;
-import javax.jms.MessageConsumer;
-import javax.jms.MessageProducer;
-import javax.jms.Session;
-
 import org.apache.activemq.ActiveMQConnectionFactory;
 import org.apache.activemq.broker.BrokerService;
 import org.apache.activemq.command.ActiveMQQueue;
 import org.apache.activemq.store.kahadb.disk.journal.DataFile;
 import org.apache.activemq.store.kahadb.disk.journal.Journal;
-import org.apache.activemq.store.kahadb.disk.journal.Location;
 import org.apache.activemq.util.ByteSequence;
 import org.apache.activemq.util.RecoverableRandomAccessFile;
 import org.junit.After;
@@ -46,6 +29,16 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.jms.*;
+import java.io.File;
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collection;
+
+import static org.apache.activemq.store.kahadb.JournalCorruptionEofIndexRecoveryTest.drain;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 @RunWith(Parameterized.class)
 public class JournalCorruptionIndexRecoveryTest {
@@ -61,10 +54,10 @@ public class JournalCorruptionIndexRecoveryTest {
     private String connectionUri;
     private KahaDBPersistenceAdapter adapter;
 
-    @Parameterized.Parameter(0)
+//    @Parameterized.Parameter(0)
     public byte fill = Byte.valueOf("3");
 
-    @Parameterized.Parameters(name = "fill=#{0}")
+//    @Parameterized.Parameters(name = "fill=#{0}")
     public static Iterable<Object[]> parameters() {
         // corruption can be valid record type values
         return Arrays.asList(new Object[][]{{Byte.valueOf("1")}, {Byte.valueOf("0")}, {Byte.valueOf("2")}, {Byte.valueOf("-1")} });

@@ -73,6 +73,7 @@ public final class ActiveMQMessageTransformation {
      * @return ActiveMQMessage - ActiveMQ's implementation object of the
      *         message.
      * @throws JMSException if an error occurs
+     * 就是判断message的格式匹配
      */
     public static ActiveMQMessage transformMessage(Message message, ActiveMQConnection connection)
         throws JMSException {

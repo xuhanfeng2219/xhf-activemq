@@ -176,6 +176,7 @@ import org.slf4j.LoggerFactory;
  * Support for JTA in the JMS API is targeted at systems vendors who will be
  * integrating the JMS API into their application server products.
  *
+ * session是一个单线程提供生产者跟消费者
  *
  * @see javax.jms.Session
  * @see javax.jms.QueueSession
@@ -189,6 +190,7 @@ public class ActiveMQSession implements Session, QueueSession, TopicSession, Sta
      * as opposed to CLIENT_ACKNOWLEDGE which
      * acknowledges all messages consumed by a session at when acknowledge()
      * is called
+     * 单条确认机制，一条消息确认一条，和手动确认相反，当调用acknowledge() session确认所有的消息
      */
     public static final int INDIVIDUAL_ACKNOWLEDGE = 4;
     public static final int MAX_ACK_CONSTANT = INDIVIDUAL_ACKNOWLEDGE;
@@ -846,6 +848,7 @@ public class ActiveMQSession implements Session, QueueSession, TopicSession, Sta
      * thrown, if trying to set a new listener. However setting the listener
      * to <tt>null</tt> is allowed, to clear the listener, even if this session
      * has been closed prior.
+     * 没有会尝试创建一个新的监听
      * <P>
      * This is an expert facility not used by regular JMS clients.
      *
@@ -886,6 +889,7 @@ public class ActiveMQSession implements Session, QueueSession, TopicSession, Sta
 
             MessageAck earlyAck = null;
             if (message.isExpired()) {
+                //message ACK的过期的设置
                 earlyAck = new MessageAck(md, MessageAck.EXPIRED_ACK_TYPE, 1);
                 earlyAck.setFirstMessageId(message.getMessageId());
             } else if (connection.isDuplicate(ActiveMQSession.this, message)) {
@@ -904,7 +908,7 @@ public class ActiveMQSession implements Session, QueueSession, TopicSession, Sta
                     continue;
                 }
             }
-
+            //判断是客户端的确认机制还是单条消息确认机制
             if (isClientAcknowledge()||isIndividualAcknowledge()) {
                 message.setAcknowledgeCallback(new Callback() {
                     @Override
@@ -925,7 +929,9 @@ public class ActiveMQSession implements Session, QueueSession, TopicSession, Sta
             final AtomicBoolean afterDeliveryError = new AtomicBoolean(false);
             /*
             * The redelivery guard is to allow the endpoint lifecycle to complete before the messsage is dispatched.
+            * 重新传递防护是允许在发送消息之前完成端点生命周期。
             * We dont want the after deliver being called after the redeliver as it may cause some weird stuff.
+            * 我们不希望在重新发送之后调用后递送，因为它可能会导致一些奇怪的东西。
             * */
             synchronized (redeliveryGuard) {
                 try {
@@ -940,6 +946,7 @@ public class ActiveMQSession implements Session, QueueSession, TopicSession, Sta
                             @Override
                             public void beforeEnd() throws Exception {
                                 // validate our consumer so we don't push stale acks that get ignored
+                                //验证我们的消费者，这样我们就不会推翻被忽略的陈旧行为
                                 if (ack.getTransactionId().isXATransaction() && !connection.hasDispatcher(ack.getConsumerId())) {
                                     LOG.debug("forcing rollback - {} consumer no longer active on {}", ack, connection);
                                     throw new TransactionRolledBackException("consumer " + ack.getConsumerId() + " no longer active on " + connection);
@@ -954,20 +961,24 @@ public class ActiveMQSession implements Session, QueueSession, TopicSession, Sta
                                     LOG.trace("rollback {}", ack, new Throwable("here"));
                                 }
                                 // ensure we don't filter this as a duplicate
+                                // 确保我们不会将其作为重复过滤
                                 connection.rollbackDuplicate(ActiveMQSession.this, md.getMessage());
 
                                 // don't redeliver if we have been interrupted b/c the broker will redeliver on reconnect
+                                //如果我们被中断，请不要重新发送，而经纪人将重新连接时重新开始
                                 if (clearRequestsCounter.get() > clearRequestCount) {
                                     LOG.debug("No redelivery of {} on rollback of {} due to failover of {}", md, ack.getTransactionId(), connection.getTransport());
                                     return;
                                 }
 
                                 // validate our consumer so we don't push stale acks that get ignored or redeliver what will be redispatched
+                                //验证我们的消费者，这样我们就不会推翻被忽略的陈旧或重新调整将重新分配的内容
                                 if (ack.getTransactionId().isXATransaction() && !connection.hasDispatcher(ack.getConsumerId())) {
                                     LOG.debug("No local redelivery of {} on rollback of {} because consumer is no longer active on {}", md, ack.getTransactionId(), connection.getTransport());
                                     return;
                                 }
 
+                                //重发策略
                                 RedeliveryPolicy redeliveryPolicy = connection.getRedeliveryPolicy();
                                 int redeliveryCounter = md.getMessage().getRedeliveryCounter();
                                 if (redeliveryPolicy.getMaximumRedeliveries() != RedeliveryPolicy.NO_MAXIMUM_REDELIVERIES
@@ -975,7 +986,7 @@ public class ActiveMQSession implements Session, QueueSession, TopicSession, Sta
                                     // We need to NACK the messages so that they get
                                     // sent to the
                                     // DLQ.
-                                    // Acknowledge the last message.
+                                    // Acknowledge the last message. 超过了重新转发的策略的限制长度
                                     MessageAck ack = new MessageAck(md, MessageAck.POSION_ACK_TYPE, 1);
                                     ack.setFirstMessageId(md.getMessage().getMessageId());
                                     ack.setPoisonCause(new Throwable("Exceeded ra redelivery policy limit:" + redeliveryPolicy));
@@ -988,7 +999,7 @@ public class ActiveMQSession implements Session, QueueSession, TopicSession, Sta
                                     asyncSendPacket(ack);
 
                                     // Figure out how long we should wait to resend
-                                    // this message.
+                                    // this message. 计算等待多长时间重发这消息
                                     long redeliveryDelay = redeliveryPolicy.getInitialRedeliveryDelay();
                                     for (int i = 0; i < redeliveryCounter; i++) {
                                         redeliveryDelay = redeliveryPolicy.getNextRedeliveryDelay(redeliveryDelay);
@@ -997,6 +1008,7 @@ public class ActiveMQSession implements Session, QueueSession, TopicSession, Sta
                                     /*
                                     * If we are a non blocking delivery then we need to stop the executor to avoid more
                                     * messages being delivered, once the message is redelivered we can restart it.
+                                    * 如果我们是非阻塞传递，那么我们需要停止执行程序以避免传递更多消息，一旦重新传递消息，我们就可以重新启动它。
                                     * */
                                     if (!connection.isNonBlockingRedelivery()) {
                                         LOG.debug("Blocking session until re-delivery...");
@@ -1009,10 +1021,12 @@ public class ActiveMQSession implements Session, QueueSession, TopicSession, Sta
                                         public void run() {
                                             /*
                                             * wait for the first delivery to be complete, i.e. after delivery has been called.
+                                            * 等待第一次交付完成，即在交付之后
                                             * */
                                             synchronized (redeliveryGuard) {
                                                 /*
                                                 * If its non blocking then we can just dispatch in a new session.
+                                                * 如果它非阻塞，那么我们可以在新会话中调度。
                                                 * */
                                                 if (connection.isNonBlockingRedelivery()) {
                                                     ((ActiveMQDispatcher) md.getConsumer()).dispatch(md);
@@ -1022,6 +1036,9 @@ public class ActiveMQSession implements Session, QueueSession, TopicSession, Sta
                                                     * endpoint will be marked as dead so redelivery will fail (and eventually
                                                     * the session marked as stale), in this case we can only call dispatch
                                                     * which will create a new session with a new endpoint.
+                                                    * 如果在afterDelivery期间抛出了错误，那么端点将被标记为死亡，
+                                                    * 因此重新传递将失败（并且最终会话标记为失效），
+                                                    * 在这种情况下，我们只能调用dispatch，这将创建具有新端点的新会话。
                                                     * */
                                                     if (afterDeliveryError.get()) {
                                                         ((ActiveMQDispatcher) md.getConsumer()).dispatch(md);
@@ -1056,6 +1073,8 @@ public class ActiveMQSession implements Session, QueueSession, TopicSession, Sta
                     // commit or roll back in order to deal with the exception.
                     // However, we notify any registered client internal exception listener
                     // of the problem.
+                    // 调用MessageListener时的一个问题通常不表示与代理的连接存在问题，即通常使用afterDelivery（）方法提交或回滚以处理异常就足够了。
+                    // 但是，我们通知任何已注册的客户端内部异常监听器的问题。
                     connection.onClientInternalException(e);
                 } finally {
                     if (ack.getTransactionId() == null) {
@@ -1080,6 +1099,9 @@ public class ActiveMQSession implements Session, QueueSession, TopicSession, Sta
             /*
             * this can be outside the try/catch as if an exception is thrown then this session will be marked as stale anyway.
             * It also needs to be outside the redelivery guard.
+            *
+            * 这可以在try / catch之外，就像抛出异常一样，无论如何这个会话都会被标记为陈旧。
+            * 它还需要在重新传递守卫之外。
             * */
             try {
                 executor.waitForQueueRestart();
@@ -1892,6 +1914,7 @@ public class ActiveMQSession implements Session, QueueSession, TopicSession, Sta
 
     /**
      * Sends the message for dispatch by the broker.
+     * 生产者发送消息
      *
      * @param producer - message producer.
      * @param destination - message destination.
@@ -1912,6 +1935,7 @@ public class ActiveMQSession implements Session, QueueSession, TopicSession, Sta
         }
         synchronized (sendMutex) {
             // tell the Broker we are about to start a new transaction
+            //告诉broker start一个新的事物
             doStartTransaction();
             TransactionId txid = transactionContext.getTransactionId();
             long sequenceNumber = producer.getMessageSequence();
@@ -1931,6 +1955,7 @@ public class ActiveMQSession implements Session, QueueSession, TopicSession, Sta
             message.setJMSRedelivered(false);
 
             // transform to our own message format here
+            //匹配相应的JMS message
             ActiveMQMessage msg = ActiveMQMessageTransformation.transformMessage(message, connection);
             msg.setDestination(destination);
             msg.setMessageId(new MessageId(producer.getProducerInfo().getProducerId(), sequenceNumber));
@@ -1956,6 +1981,7 @@ public class ActiveMQSession implements Session, QueueSession, TopicSession, Sta
             }
             if (onComplete==null && sendTimeout <= 0 && !msg.isResponseRequired() && !connection.isAlwaysSyncSend() && (!msg.isPersistent() || connection.isUseAsyncSend() || txid != null)) {
                 this.connection.asyncSendPacket(msg);
+                //判断memory usage
                 if (producerWindow != null) {
                     // Since we defer lots of the marshaling till we hit the
                     // wire, this might not
@@ -1964,6 +1990,9 @@ public class ActiveMQSession implements Session, QueueSession, TopicSession, Sta
                     // to get more accurate sizes.. this is more important once
                     // users start using producer window
                     // flow control.
+                    //由于我们推迟了大量的编组，直到我们击中电线，这可能无法提供准确的尺寸。
+                    // 我们可能会转而采取更积极的编组方式，以获得更准确的尺寸。
+                    // 一旦用户开始使用生产者窗口流量控制，这一点就更为重要。
                     int size = msg.getSize();
                     producerWindow.increaseUsage(size);
                 }

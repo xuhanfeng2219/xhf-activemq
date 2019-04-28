@@ -134,6 +134,10 @@ import org.slf4j.MDC;
  * number of transport connectors, network connectors and a bunch of properties
  * which can be used to configure the broker as its lazily created.
  *
+ * 管理ActiveMQ Broker的生命周期。 BrokerService由一系列的
+ * 传输连接器的数量，网络连接器和一组属性，可用于将代理配置为延迟创建的代理。
+ *
+ * broker:消息代理，表示消息队列服务器实体，接受客户端连接，提供消息通信的核心服务。
  * @org.apache.xbean.XBean
  */
 public class BrokerService implements Service {
@@ -321,6 +325,7 @@ public class BrokerService implements Service {
 
     /**
      * Adds a new transport connector for the given bind address
+     * 负责client-broker端的消息传送，传输连接器就是用来处理和监听客户端连接
      *
      * @return the newly created and added transport connector
      * @throws Exception
@@ -377,7 +382,7 @@ public class BrokerService implements Service {
 
     /**
      * Adds a new network connector using the given discovery address
-     *
+     * broker-broker端之间的通讯
      * @return the newly created and added network connector
      * @throws Exception
      */
@@ -605,6 +610,7 @@ public class BrokerService implements Service {
         stopping.set(false);
         preShutdownHooksInvoked.set(false);
         startDate = new Date();
+        //该类隐藏并用作底层日志记录系统的MDC实现的替代。
         MDC.put("activemq.broker", brokerName);
 
         try {
@@ -1172,6 +1178,10 @@ public class BrokerService implements Service {
         this.populateJMSXUserID = populateJMSXUserID;
     }
 
+    /**
+     * 系统所用多少
+     * @return
+     */
     public SystemUsage getSystemUsage() {
         try {
             if (systemUsage == null) {
@@ -1925,12 +1935,14 @@ public class BrokerService implements Service {
     public synchronized JobSchedulerStore getJobSchedulerStore() {
 
         // If support is off don't allow any scheduler even is user configured their own.
+        //如果支持已关闭，则不允许任何调度程序甚至用户自己配置。
         if (!isSchedulerSupport()) {
             return null;
         }
 
         // If the user configured their own we use it even if persistence is disabled since
         // we don't know anything about their implementation.
+        //如果用户自己配置了它们，即使禁用了持久性，我们也会使用它，因为我们对它们的实现一无所知。
         if (jobSchedulerStore == null) {
 
             if (!isPersistent()) {
@@ -1969,6 +1981,8 @@ public class BrokerService implements Service {
             // Load the KahaDB store as a last resort, this only works if KahaDB is
             // included at runtime, otherwise this will fail.  User should disable
             // scheduler support if this fails.
+            //加载KahaDB存储作为最后的手段，这仅在运行时包含KahaDB时才有效，否则将失败。
+            // 如果失败，用户应禁用调度程序支持。
             try {
                 String clazz = "org.apache.activemq.store.kahadb.KahaDBPersistenceAdapter";
                 PersistenceAdapter adaptor = (PersistenceAdapter)getClass().getClassLoader().loadClass(clazz).newInstance();
@@ -2020,6 +2034,8 @@ public class BrokerService implements Service {
     /**
      * Check that the store usage limit is not greater than max usable
      * space and adjust if it is
+     *
+     * 检查内存使用限制是否不大于最大可用空间，如果是，则进行调整
      */
     protected void checkStoreUsageLimits() throws Exception {
         final SystemUsage usage = getSystemUsage();
@@ -2048,6 +2064,8 @@ public class BrokerService implements Service {
     /**
      * Check that temporary usage limit is not greater than max usable
      * space and adjust if it is
+     *
+     * 检查临时使用限制是否不大于最大可用空间，如果是，则进行调整
      */
     protected void checkTmpStoreUsageLimits() throws Exception {
         final SystemUsage usage = getSystemUsage();
@@ -2078,6 +2096,13 @@ public class BrokerService implements Service {
         }
     }
 
+    /**
+     * 检查使用限制
+     * @param dir
+     * @param storeUsage
+     * @param percentLimit
+     * @throws ConfigurationException
+     */
     protected void checkUsageLimit(File dir, PercentLimitUsage<?> storeUsage, int percentLimit) throws ConfigurationException {
         if (dir != null) {
             dir = StoreUtil.findParentDirectory(dir);
@@ -2092,6 +2117,7 @@ public class BrokerService implements Service {
                 throw new ConfigurationException(message);
             }
             //compute byte value of the percent limit
+            //计算百分比限制的字节值
             long bytePercentLimit = totalSpace * percentLimit / 100;
             int oneMeg = 1024 * 1024;
 
@@ -2099,15 +2125,19 @@ public class BrokerService implements Service {
             //the usable space...this means we can grow the store larger
             //Changes in partition size (total space) as well as changes in usable space should
             //be detected here
+            //检查存储限制是否小于设置的限制百分比以及可用空间...
+            // 这意味着我们可以增加存储空间更大的分区大小（总空间）的变化以及可用空间的变化应该在这里检测到
             if (diskUsageCheckRegrowThreshold > -1 && percentLimit > 0
                     && storeUsage.getTotal() == 0
                     && storeLimit < bytePercentLimit && storeLimit < totalUsableSpace){
 
                 // set the limit to be bytePercentLimit or usableSpace if
                 // usableSpace is less than the percentLimit
+                //如果usefulSpace小于percentLimit，则将limit设置为bytePercentLimit或usefulSpace
                 long newLimit = bytePercentLimit > totalUsableSpace ? totalUsableSpace : bytePercentLimit;
 
                 //To prevent changing too often, check threshold
+                //为了防止改变太频繁，检查阈值
                 if (newLimit - storeLimit >= diskUsageCheckRegrowThreshold) {
                     LOG.info("Usable disk space has been increased, attempting to regrow " + storeName + " limit to "
                             + percentLimit + "% of the partition size.");
@@ -2117,6 +2147,7 @@ public class BrokerService implements Service {
                 }
 
             //check if the limit is too large for the amount of usable space
+                //检查限制是否过大超过了可用空间
             } else if (storeLimit > totalUsableSpace) {
                 final String message = storeName + " limit is " +  storeLimit / oneMeg
                         + " mb (current store usage is " + storeCurrent / oneMeg
@@ -2150,6 +2181,10 @@ public class BrokerService implements Service {
      * Schedules a periodic task based on schedulePeriodForDiskLimitCheck to
      * update store and temporary store limits if the amount of available space
      * plus current store size is less than the existin configured limit
+     *
+     * 根据schedulePeriodForDiskLimitCheck计划定期任务
+     * 如果可用空间量，则更新存储和临时存储限制
+     * 加上当前储存大小小于现有配置限制
      */
     protected void scheduleDiskUsageLimitsCheck() throws IOException {
         if (schedulePeriodForDiskUsageCheck > 0 &&
@@ -2179,6 +2214,7 @@ public class BrokerService implements Service {
         long memLimit = usage.getMemoryUsage().getLimit();
         long jvmLimit = Runtime.getRuntime().maxMemory();
 
+        //系统的内存限制大于jvm设置的内存限制
         if (memLimit > jvmLimit) {
             final String message = "Memory Usage for the Broker (" + memLimit / (1024 * 1024)
                     + "mb) is more than the maximum available for the JVM: " + jvmLimit / (1024 * 1024);
@@ -2193,16 +2229,22 @@ public class BrokerService implements Service {
         }
     }
 
+    /**
+     * 检查系统内存使用的最大限制
+     * @throws Exception
+     */
     protected void checkStoreSystemUsageLimits() throws Exception {
         final SystemUsage usage = getSystemUsage();
 
         //Check the persistent store and temp store limits if they exist
         //and schedule a periodic check to update disk limits if
         //schedulePeriodForDiskLimitCheck is set
+        //检查持久存储和临时存储限制（如果存在）并安排定期检查以更新磁盘限制（如果设置了schedulePeriodForDiskLimitCheck）
         checkStoreUsageLimits();
         checkTmpStoreUsageLimits();
         scheduleDiskUsageLimitsCheck();
 
+        //job的调度内存
         if (getJobSchedulerStore() != null) {
             JobSchedulerStore scheduler = getJobSchedulerStore();
             File schedulerDir = scheduler.getDirectory();
@@ -2218,6 +2260,7 @@ public class BrokerService implements Service {
                 }
                 long schedulerLimit = usage.getJobSchedulerUsage().getLimit();
                 long dirFreeSpace = schedulerDir.getUsableSpace();
+                //定时调度的内存大于剩余目录的内存空间
                 if (schedulerLimit > dirFreeSpace) {
                     LOG.warn("Job Scheduler Store limit is " + schedulerLimit / (1024 * 1024) +
                              " mb, whilst the data directory: " + schedulerDir.getAbsolutePath() +
@@ -2759,6 +2802,7 @@ public class BrokerService implements Service {
 
     /**
      * Perform any custom dependency injection
+     * 执行任何自定义依赖注入
      */
     protected void configureService(Object service) {
         if (service instanceof BrokerServiceAware) {

@@ -32,11 +32,7 @@ import org.junit.runners.Parameterized;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.jms.Connection;
-import javax.jms.Destination;
-import javax.jms.Message;
-import javax.jms.MessageProducer;
-import javax.jms.Session;
+import javax.jms.*;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
@@ -59,13 +55,13 @@ public class JournalCorruptionExceptionTest {
     private String connectionUri;
     private KahaDBPersistenceAdapter adapter;
 
-    @Parameterized.Parameter(0)
+//    @Parameterized.Parameter(0)
     public byte fill = Byte.valueOf("3");
 
-    @Parameterized.Parameter(1)
+//    @Parameterized.Parameter(1)
     public int fillLength = 10;
 
-    @Parameterized.Parameters(name = "fill=#{0},#{1}")
+//    @Parameterized.Parameters(name = "fill=#{0},#{1}")
     public static Iterable<Object[]> parameters() {
         // corruption can be valid record type values
         return Arrays.asList(new Object[][]{

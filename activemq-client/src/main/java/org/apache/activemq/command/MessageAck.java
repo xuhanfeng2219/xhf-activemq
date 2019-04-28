@@ -31,11 +31,15 @@ public class MessageAck extends BaseCommand {
      * client. Message will still be retained until an standard ack is received.
      * This is used get the broker to send more messages past prefetch limits
      * when an standard ack has not been sent.
+     *
+     * 用于让经纪人知道消息已经传递给了客户。在收到标准确认之前，消息仍将保留。
+     * 这用于让代理在尚未发送标准确认时发送超过预取限制的更多消息。
      */
     public static final byte DELIVERED_ACK_TYPE = 0;
 
     /**
      * The standard ack case where a client wants the message to be discarded.
+     * 客户希望丢弃消息的标准ack案例
      */
     public static final byte STANDARD_ACK_TYPE = 2;
 
@@ -43,6 +47,8 @@ public class MessageAck extends BaseCommand {
      * In case the client want's to explicitly let the broker know that a
      * message was not processed and the message was considered a poison
      * message.
+     *
+     * 如果客户端希望明确地让代理知道消息未被处理并且消息被视为有害消息。
      */
     public static final byte POSION_ACK_TYPE = 1;
 
@@ -50,22 +56,28 @@ public class MessageAck extends BaseCommand {
      * In case the client want's to explicitly let the broker know that a
      * message was not processed and it was re-delivered to the consumer
      * but it was not yet considered to be a poison message.  The messageCount 
-     * field will hold the number of times the message was re-delivered. 
+     * field will hold the number of times the message was re-delivered.
+     *
+     * 如果客户端希望明确地让代理知道消息没有被处理并且它被重新传递给消费者但是它还没有被认为是有害消息。
+     * messageCount字段将保留重新传递邮件的次数。
      */
     public static final byte REDELIVERED_ACK_TYPE = 3;
     
     /**
      * The  ack case where a client wants only an individual message to be discarded.
+     * 客户端只想丢弃单个消息的ack情况。
      */
     public static final byte INDIVIDUAL_ACK_TYPE = 4;
 
 /**
      * The ack case where a durable topic subscription does not match a selector.
+ *      ack案例，其中持久主题订阅与选择器不匹配。
      */
     public static final byte UNMATCHED_ACK_TYPE = 5;
 
     /**
      * the case where a consumer does not dispatch because message has expired inflight
+     * 消费者因为消息已经过期而没有派遣的情况
      */
     public static final byte EXPIRED_ACK_TYPE = 6;
 

@@ -5,9 +5,9 @@
  * The ASF licenses this file to You under the Apache License, Version 2.0
  * (the "License"); you may not use this file except in compliance with
  * the License.  You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -16,15 +16,20 @@
  */
 package org.apache.activemq;
 
-import java.io.Serializable;
-import java.util.Random;
 import org.apache.activemq.filter.DestinationMapEntry;
 import org.apache.activemq.util.IntrospectionSupport;
+
+import java.io.Serializable;
+import java.util.Random;
 
 /**
  * Configuration options for a messageConsumer used to control how messages are re-delivered when they
  * are rolled back.
  * May be used server side on a per destination basis via the Broker RedeliveryPlugin
+ *
+ * 用于控制消息回滚时如何重新传递消息的messageConsumer的配置选项。
+ * 可以通过Broker RedeliveryPlugin在每个目标的基础上使用服务器端
+ *
  *
  * @org.apache.xbean.XBean element="redeliveryPolicy"
  *
@@ -52,7 +57,7 @@ public class RedeliveryPolicy extends DestinationMapEntry implements Cloneable, 
 
     public RedeliveryPolicy copy() {
         try {
-            return (RedeliveryPolicy)clone();
+            return (RedeliveryPolicy) clone();
         } catch (CloneNotSupportedException e) {
             throw new RuntimeException("Could not clone: " + e, e);
         }
@@ -67,7 +72,7 @@ public class RedeliveryPolicy extends DestinationMapEntry implements Cloneable, 
     }
 
     public short getCollisionAvoidancePercent() {
-        return (short)Math.round(collisionAvoidanceFactor * 100);
+        return (short) Math.round(collisionAvoidanceFactor * 100);
     }
 
     public void setCollisionAvoidancePercent(short collisionAvoidancePercent) {
@@ -103,8 +108,9 @@ public class RedeliveryPolicy extends DestinationMapEntry implements Cloneable, 
 
         if (previousDelay > 0 && useExponentialBackOff && backOffMultiplier > 1) {
             nextDelay = (long) (previousDelay * backOffMultiplier);
-            if(maximumRedeliveryDelay != -1 && nextDelay > maximumRedeliveryDelay) {
+            if (maximumRedeliveryDelay != -1 && nextDelay > maximumRedeliveryDelay) {
                 // in case the user made max redelivery delay less than redelivery delay for some reason.
+                // 如果用户由于某种原因使最大重新传递延迟小于重新传递延迟。
                 nextDelay = Math.max(maximumRedeliveryDelay, redeliveryDelay);
             }
         }
@@ -113,6 +119,9 @@ public class RedeliveryPolicy extends DestinationMapEntry implements Cloneable, 
             /*
              * First random determines +/-, second random determines how far to
              * go in that direction. -cgs
+             *
+             * 第一个随机确定+/-，第二个随机确定方向的方向
+             *
              */
             Random random = getRandomNumberGenerator();
             double variance = (random.nextBoolean() ? collisionAvoidanceFactor : -collisionAvoidanceFactor) * random.nextDouble();

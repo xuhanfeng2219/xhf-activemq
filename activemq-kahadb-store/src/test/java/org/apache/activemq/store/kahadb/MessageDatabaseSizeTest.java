@@ -16,14 +16,6 @@
  */
 package org.apache.activemq.store.kahadb;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-
-import java.io.File;
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.Collection;
-
 import org.apache.activemq.broker.BrokerService;
 import org.apache.activemq.command.ActiveMQQueue;
 import org.apache.activemq.command.ActiveMQTextMessage;
@@ -45,12 +37,20 @@ import org.junit.runners.Parameterized.Parameters;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collection;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+
 @RunWith(Parameterized.class)
 public class MessageDatabaseSizeTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(MessageDatabaseSizeTest.class);
 
-    @Parameters(name = "subStatsEnabled={0}")
+//    @Parameters(name = "subStatsEnabled={0}")
     public static Collection<Object[]> data() {
         return Arrays.asList(new Object[][] {
                 // Subscription stats on

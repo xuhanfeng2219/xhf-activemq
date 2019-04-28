@@ -86,7 +86,7 @@ public class Main {
         if (useDefExt && app.canUseExtdir()) {
 
             boolean baseIsHome = app.getActiveMQBase().equals(app.getActiveMQHome());
-
+            //在base目录下的获取配置文件，源码的activemq-master/的目录下
             File baseLibDir = new File(app.getActiveMQBase(), "lib");
             File homeLibDir = new File(app.getActiveMQHome(), "lib");
 
@@ -95,6 +95,7 @@ public class Main {
             }
             app.addExtensionDirectory(homeLibDir);
 
+            //不是base目录，加载以下目录的jar包在base目录下，activemq-master目录下与activemq同级目录
             if (!baseIsHome) {
                 app.addExtensionDirectory(new File(baseLibDir, "camel"));
                 app.addExtensionDirectory(new File(baseLibDir, "optional"));
@@ -298,6 +299,11 @@ public class Main {
         }
     }
 
+    /**
+     * 加载类方法
+     * @return
+     * @throws MalformedURLException
+     */
     public ClassLoader getClassLoader() throws MalformedURLException {
         if (classLoader == null) {
             // Setup the ClassLoader

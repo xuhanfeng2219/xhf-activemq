@@ -29,6 +29,9 @@ import java.util.NoSuchElementException;
  * Sequence representation. Use to keep track of received message ids to find
  * out if a message is duplicate or if there are any missing messages.
  *
+ * 跟踪增加的长值。 使用序列表示折叠数字范围。
+ * 用于跟踪收到的消息ID，以确定消息是否重复或是否有任何丢失的消息。
+ *
  * @author chirino
  */
 public class SequenceSet extends LinkedNodeList<Sequence> implements Iterable<Long> {

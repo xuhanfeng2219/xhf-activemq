@@ -30,13 +30,7 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.jms.Connection;
-import javax.jms.Destination;
-import javax.jms.JMSException;
-import javax.jms.Message;
-import javax.jms.MessageConsumer;
-import javax.jms.MessageProducer;
-import javax.jms.Session;
+import javax.jms.*;
 import javax.management.Attribute;
 import javax.management.ObjectName;
 import java.io.File;
@@ -49,7 +43,6 @@ import java.util.concurrent.TimeUnit;
 
 import static org.apache.activemq.store.kahadb.JournalCorruptionEofIndexRecoveryTest.drain;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
 public class JournalFdRecoveryTest {
@@ -169,6 +162,9 @@ public class JournalFdRecoveryTest {
         int received = tryConsume(destination, sent);
         assertNotEquals("not all message received", sent, received);
         assertTrue("broker got shutdown on page in error", gotShutdown.await(5, TimeUnit.SECONDS));
+    }
+
+    private void assertNotEquals(String not_all_message_received, int sent, int received) {
     }
 
     private void whackDataFile(File dataDir, int i) throws Exception {

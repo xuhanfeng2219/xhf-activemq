@@ -2194,6 +2194,7 @@ public class ActiveMQConnection implements Connection, TopicConnection, QueueCon
      * Internal send method optimized: - It does not copy the message - It can
      * only handle ActiveMQ messages. - You can specify if the send is async or
      * sync - Does not allow you to send /w a transaction.
+     * 异步的send方法
      */
     void send(ActiveMQDestination destination, ActiveMQMessage msg, MessageId messageId, int deliveryMode, int priority, long timeToLive, boolean async) throws JMSException {
         checkClosedOrFailed();

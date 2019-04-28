@@ -82,6 +82,7 @@ public class ZooKeeperPartitionBroker extends PartitionBroker {
         }
     }
 
+    @Override
     protected void reloadConfiguration() throws Exception {
         if( zk_client==null )  {
             LOG.debug("Connecting to ZooKeeper");

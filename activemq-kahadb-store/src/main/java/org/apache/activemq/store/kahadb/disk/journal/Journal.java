@@ -60,6 +60,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Manages DataFiles
+ * 管理数据文件，日志对象
  */
 public class Journal {
     public static final String CALLER_BUFFER_APPENDER = "org.apache.kahadb.journal.CALLER_BUFFER_APPENDER";
@@ -84,6 +85,7 @@ public class Journal {
     private ScheduledExecutorService scheduler;
 
     // tackle corruption when checksum is disabled or corrupt with zeros, minimize data loss
+    //在校验和被禁用或使用零损坏时解决损坏，最大限度地减少数据丢失
     public void corruptRecoveryLocation(Location recoveryPosition) throws IOException {
         DataFile dataFile = getDataFile(recoveryPosition);
         // with corruption on recovery we have no faith in the content - slip to the next batch record or eof
@@ -103,6 +105,7 @@ public class Journal {
             LOG.warn("Corrupt journal records found in '{}' between offsets: {}", dataFile.getFile(), sequence);
 
             // skip corruption on getNextLocation
+            // 跳过损坏获取下个位置
             recoveryPosition.setOffset(nextOffset);
             recoveryPosition.setSize(-1);
 
@@ -239,6 +242,7 @@ public class Journal {
 
     private DataFileRemovedListener dataFileRemovedListener;
 
+    //日志追加
     public synchronized void start() throws IOException {
         if (started) {
             return;
@@ -321,6 +325,7 @@ public class Journal {
         });
 
         // init current write file
+        // 当前初始化写文件
         if (dataFiles.isEmpty()) {
             nextDataFileId = 1;
             rotateWriteFile();
@@ -335,6 +340,7 @@ public class Journal {
         }
 
         // ensure we don't report unused space of last journal file in size metric
+        //确保我们不会在大小指标中报告上一个日志文件的未使用空间
         int lastFileLength = dataFiles.getTail().getLength();
         if (totalLength.get() > lastFileLength && lastAppendLocation.get().getOffset() > 0) {
             totalLength.addAndGet(lastAppendLocation.get().getOffset() - lastFileLength);
@@ -357,6 +363,10 @@ public class Journal {
         return buffer;
     }
 
+    /**
+     * 预分配全部的日志数据文件
+     * @param file
+     */
     public void preallocateEntireJournalDataFile(RecoverableRandomAccessFile file) {
 
         if (PreallocationScope.NONE != preallocationScope) {
@@ -645,6 +655,7 @@ public class Journal {
         return totalLength.get();
     }
 
+    //回转写日志
     private void rotateWriteFile() throws IOException {
        synchronized (dataFileIdLock) {
             DataFile dataFile = nextDataFile;

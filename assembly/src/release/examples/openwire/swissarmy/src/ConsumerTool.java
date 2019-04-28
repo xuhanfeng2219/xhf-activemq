@@ -169,6 +169,7 @@ public class ConsumerTool extends Thread implements MessageListener, ExceptionLi
         try {
 
             if (message instanceof TextMessage) {
+                //
                 TextMessage txtMsg = (TextMessage) message;
                 if (verbose) {
 

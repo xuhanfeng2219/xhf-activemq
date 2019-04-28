@@ -5,9 +5,9 @@
  * The ASF licenses this file to You under the Apache License, Version 2.0
  * (the "License"); you may not use this file except in compliance with
  * the License.  You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -16,44 +16,8 @@
  */
 package org.apache.activemq;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
-
-import javax.jms.IllegalStateException;
-import javax.jms.InvalidDestinationException;
-import javax.jms.JMSException;
-import javax.jms.Message;
-import javax.jms.MessageConsumer;
-import javax.jms.MessageListener;
-import javax.jms.TransactionRolledBackException;
-
 import org.apache.activemq.blob.BlobDownloader;
-import org.apache.activemq.command.ActiveMQBlobMessage;
-import org.apache.activemq.command.ActiveMQDestination;
-import org.apache.activemq.command.ActiveMQMessage;
-import org.apache.activemq.command.ActiveMQObjectMessage;
-import org.apache.activemq.command.ActiveMQTempDestination;
-import org.apache.activemq.command.CommandTypes;
-import org.apache.activemq.command.ConsumerId;
-import org.apache.activemq.command.ConsumerInfo;
-import org.apache.activemq.command.MessageAck;
-import org.apache.activemq.command.MessageDispatch;
-import org.apache.activemq.command.MessageId;
-import org.apache.activemq.command.MessagePull;
-import org.apache.activemq.command.RemoveInfo;
-import org.apache.activemq.command.TransactionId;
+import org.apache.activemq.command.*;
 import org.apache.activemq.management.JMSConsumerStatsImpl;
 import org.apache.activemq.management.StatsCapable;
 import org.apache.activemq.management.StatsImpl;
@@ -66,36 +30,49 @@ import org.apache.activemq.util.ThreadPoolUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.jms.IllegalStateException;
+import javax.jms.*;
+import javax.jms.Message;
+import java.io.IOException;
+import java.util.*;
+import java.util.Map.Entry;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+
 /**
  * A client uses a <CODE>MessageConsumer</CODE> object to receive messages
  * from a destination. A <CODE> MessageConsumer</CODE> object is created by
  * passing a <CODE>Destination</CODE> object to a message-consumer creation
  * method supplied by a session.
- * <P>
+ * <p>
  * <CODE>MessageConsumer</CODE> is the parent interface for all message
  * consumers.
- * <P>
+ * <p>
  * A message consumer can be created with a message selector. A message selector
  * allows the client to restrict the messages delivered to the message consumer
  * to those that match the selector.
- * <P>
+ * <p>
  * A client may either synchronously receive a message consumer's messages or
  * have the consumer asynchronously deliver them as they arrive.
- * <P>
+ * <p>
  * For synchronous receipt, a client can request the next message from a message
  * consumer using one of its <CODE> receive</CODE> methods. There are several
  * variations of <CODE>receive</CODE> that allow a client to poll or wait for
  * the next message.
- * <P>
+ * <p>
  * For asynchronous delivery, a client can register a
  * <CODE>MessageListener</CODE> object with a message consumer. As messages
  * arrive at the message consumer, it delivers them by calling the
  * <CODE>MessageListener</CODE>'s<CODE>
  * onMessage</CODE> method.
- * <P>
+ * <p>
  * It is a client programming error for a <CODE>MessageListener</CODE> to
  * throw an exception.
- *
+ * <p>
+ * consumer:消息消费者，业务的处理方，负责从 Broker 获取消息并进行业务逻辑处理。
  *
  * @see javax.jms.MessageConsumer
  * @see javax.jms.QueueReceiver
@@ -107,6 +84,7 @@ public class ActiveMQMessageConsumer implements MessageAvailableConsumer, StatsC
     @SuppressWarnings("serial")
     class PreviouslyDeliveredMap<K, V> extends HashMap<K, V> {
         final TransactionId transactionId;
+
         public PreviouslyDeliveredMap(TransactionId transactionId) {
             this.transactionId = transactionId;
         }
@@ -117,13 +95,16 @@ public class ActiveMQMessageConsumer implements MessageAvailableConsumer, StatsC
     protected final ConsumerInfo info;
 
     // These are the messages waiting to be delivered to the client
+    //这些是等待传递给客户端的消息
     protected final MessageDispatchChannel unconsumedMessages;
 
     // The are the messages that were delivered to the consumer but that have
     // not been acknowledged. It's kept in reverse order since we
     // Always walk list in reverse order.
+    //这些消息是传递给消费者但尚未确认的消息。它保持相反的顺序，因为我们总是以相反的顺序走列表。
     protected final LinkedList<MessageDispatch> deliveredMessages = new LinkedList<MessageDispatch>();
     // track duplicate deliveries in a transaction such that the tx integrity can be validated
+    //跟踪事务中的重复交付，以便验证事务完整性
     private PreviouslyDeliveredMap<MessageId, Boolean> previouslyDeliveredMessages;
     private int deliveredCounter;
     private int additionalWindowSize;
@@ -177,9 +158,9 @@ public class ActiveMQMessageConsumer implements MessageAvailableConsumer, StatsC
      * @throws JMSException
      */
     public ActiveMQMessageConsumer(ActiveMQSession session, ConsumerId consumerId, ActiveMQDestination dest,
-            String name, String selector, int prefetch,
-            int maximumPendingMessageCount, boolean noLocal, boolean browser,
-            boolean dispatchAsync, MessageListener messageListener) throws JMSException {
+                                   String name, String selector, int prefetch,
+                                   int maximumPendingMessageCount, boolean noLocal, boolean browser,
+                                   boolean dispatchAsync, MessageListener messageListener) throws JMSException {
         if (dest == null) {
             throw new InvalidDestinationException("Don't understand null destinations");
         } else if (dest.getPhysicalName() == null) {
@@ -204,9 +185,10 @@ public class ActiveMQMessageConsumer implements MessageAvailableConsumer, StatsC
                 throw new JMSException("Cannot have a prefetch size less than zero");
             }
         }
+        //处理等待未处理的消息，设置优先级默认是FIFO先进先出
         if (session.connection.isMessagePrioritySupported()) {
             this.unconsumedMessages = new SimplePriorityMessageDispatchChannel();
-        }else {
+        } else {
             this.unconsumedMessages = new FifoMessageDispatchChannel();
         }
 
@@ -215,6 +197,7 @@ public class ActiveMQMessageConsumer implements MessageAvailableConsumer, StatsC
         if (this.redeliveryPolicy == null) {
             this.redeliveryPolicy = new RedeliveryPolicy();
         }
+        //设置消息转换
         setTransformer(session.getTransformer());
 
         this.info = new ConsumerInfo(consumerId);
@@ -230,16 +213,17 @@ public class ActiveMQMessageConsumer implements MessageAvailableConsumer, StatsC
         this.info.setSelector(null);
 
         // Allows the options on the destination to configure the consumerInfo
+        //允许目标上的选项配置consumerInfo
         if (dest.getOptions() != null) {
             Map<String, Object> options = IntrospectionSupport.extractProperties(
-                new HashMap<String, Object>(dest.getOptions()), "consumer.");
+                    new HashMap<String, Object>(dest.getOptions()), "consumer.");
             IntrospectionSupport.setProperties(this.info, options);
             if (options.size() > 0) {
                 String msg = "There are " + options.size()
-                    + " consumer options that couldn't be set on the consumer."
-                    + " Check the options are spelled correctly."
-                    + " Unknown parameters=[" + options + "]."
-                    + " This consumer cannot be started.";
+                        + " consumer options that couldn't be set on the consumer."
+                        + " Check the options are spelled correctly."
+                        + " Unknown parameters=[" + options + "]."
+                        + " This consumer cannot be started.";
                 LOG.warn(msg);
                 throw new ConfigurationException(msg);
             }
@@ -261,8 +245,9 @@ public class ActiveMQMessageConsumer implements MessageAvailableConsumer, StatsC
         }
 
         this.stats = new JMSConsumerStatsImpl(session.getSessionStats(), dest);
+        //优化确认机制
         this.optimizeAcknowledge = session.connection.isOptimizeAcknowledge() && session.isAutoAcknowledge()
-                                   && !info.isBrowser();
+                && !info.isBrowser();
         if (this.optimizeAcknowledge) {
             this.optimizeAcknowledgeTimeOut = session.connection.getOptimizeAcknowledgeTimeOut();
             setOptimizedAckScheduledAckInterval(session.connection.getOptimizedAckScheduledAckInterval());
@@ -272,8 +257,8 @@ public class ActiveMQMessageConsumer implements MessageAvailableConsumer, StatsC
         this.failoverRedeliveryWaitPeriod = session.connection.getConsumerFailoverRedeliveryWaitPeriod();
         this.nonBlockingRedelivery = session.connection.isNonBlockingRedelivery();
         this.transactedIndividualAck = session.connection.isTransactedIndividualAck()
-                        || this.nonBlockingRedelivery
-                        || session.connection.isMessagePrioritySupported();
+                || this.nonBlockingRedelivery
+                || session.connection.isMessagePrioritySupported();
         this.consumerExpiryCheckEnabled = session.connection.isConsumerExpiryCheckEnabled();
         if (messageListener != null) {
             setMessageListener(messageListener);
@@ -292,11 +277,11 @@ public class ActiveMQMessageConsumer implements MessageAvailableConsumer, StatsC
     }
 
     private boolean isAutoAcknowledgeEach() {
-        return session.isAutoAcknowledge() || ( session.isDupsOkAcknowledge() && getDestination().isQueue() );
+        return session.isAutoAcknowledge() || (session.isDupsOkAcknowledge() && getDestination().isQueue());
     }
 
     private boolean isAutoAcknowledgeBatch() {
-        return session.isDupsOkAcknowledge() && !getDestination().isQueue() ;
+        return session.isDupsOkAcknowledge() && !getDestination().isQueue();
     }
 
     @Override
@@ -386,10 +371,10 @@ public class ActiveMQMessageConsumer implements MessageAvailableConsumer, StatsC
      * Gets this message consumer's message selector expression.
      *
      * @return this message consumer's message selector, or null if no message
-     *         selector exists for the message consumer (that is, if the message
-     *         selector was not set or was set to null or the empty string)
+     * selector exists for the message consumer (that is, if the message
+     * selector was not set or was set to null or the empty string)
      * @throws JMSException if the JMS provider fails to receive the next
-     *                 message due to some internal error.
+     *                      message due to some internal error.
      */
     @Override
     public String getMessageSelector() throws JMSException {
@@ -401,9 +386,9 @@ public class ActiveMQMessageConsumer implements MessageAvailableConsumer, StatsC
      * Gets the message consumer's <CODE>MessageListener</CODE>.
      *
      * @return the listener for the message consumer, or null if no listener is
-     *         set
+     * set
      * @throws JMSException if the JMS provider fails to get the message
-     *                 listener due to some internal error.
+     *                      listener due to some internal error.
      * @see javax.jms.MessageConsumer#setMessageListener(javax.jms.MessageListener)
      */
     @Override
@@ -414,17 +399,17 @@ public class ActiveMQMessageConsumer implements MessageAvailableConsumer, StatsC
 
     /**
      * Sets the message consumer's <CODE>MessageListener</CODE>.
-     * <P>
+     * <p>
      * Setting the message listener to null is the equivalent of unsetting the
      * message listener for the message consumer.
-     * <P>
+     * <p>
      * The effect of calling <CODE>MessageConsumer.setMessageListener</CODE>
      * while messages are being consumed by an existing listener or the consumer
      * is being used to consume messages synchronously is undefined.
      *
      * @param listener the listener to which the messages are to be delivered
      * @throws JMSException if the JMS provider fails to receive the next
-     *                 message due to some internal error.
+     *                      message due to some internal error.
      * @see javax.jms.MessageConsumer#getMessageListener
      */
     @Override
@@ -472,9 +457,13 @@ public class ActiveMQMessageConsumer implements MessageAvailableConsumer, StatsC
      * then it it tries to not block at all, it returns a message if it is
      * available - if timeout>0 then it blocks up to timeout amount of time.
      * Expired messages will consumed by this method.
+     * 用于从unconsumedMessages列表中获取入队消息。
+     * 此方法阻止的时间量基于超时值。
+     * - 如果超时== -1则阻塞直到收到消息。
+     * - 如果超时== 0然后它尝试不阻塞它，如果它可用则返回一条消息 - 如果超时> 0则它会阻塞超时时间。此方法将使用过期的消息。
      *
-     * @throws JMSException
      * @return null if we timeout or if the consumer is closed.
+     * @throws JMSException
      */
     private MessageDispatch dequeue(long timeout) throws JMSException {
         try {
@@ -551,15 +540,19 @@ public class ActiveMQMessageConsumer implements MessageAvailableConsumer, StatsC
 
     /**
      * Receives the next message produced for this message consumer.
-     * <P>
+     * 接收下条消息由生产者给消费者提供
+     * <p>
      * This call blocks indefinitely until a message is produced or until this
      * message consumer is closed.
-     * <P>
+     * blocks回调无限期知道一条消息被生产或者直到这条消息被消费者关闭
+     * <p>
      * If this <CODE>receive</CODE> is done within a transaction, the consumer
      * retains the message until the transaction commits.
+     * 如果这个接收完成在某个事务内，这个消费者将保留这个消息直到事务提交
      *
      * @return the next message produced for this message consumer, or null if
-     *         this message consumer is concurrently closed
+     * this message consumer is concurrently closed
+     * 下条消息被生产给消费者，或者这个消息目前已被消费者关闭
      */
     @Override
     public Message receive() throws JMSException {
@@ -579,19 +572,17 @@ public class ActiveMQMessageConsumer implements MessageAvailableConsumer, StatsC
     }
 
     /**
-     * @param md
-     *      the MessageDispatch that arrived from the Broker.
-     *
+     * @param md the MessageDispatch that arrived from the Broker.
      * @return an ActiveMQMessage initialized from the Message in the dispatch.
      */
     private ActiveMQMessage createActiveMQMessage(final MessageDispatch md) throws JMSException {
-        ActiveMQMessage m = (ActiveMQMessage)md.getMessage().copy();
-        if (m.getDataStructureType()==CommandTypes.ACTIVEMQ_BLOB_MESSAGE) {
-            ((ActiveMQBlobMessage)m).setBlobDownloader(new BlobDownloader(session.getBlobTransferPolicy()));
+        ActiveMQMessage m = (ActiveMQMessage) md.getMessage().copy();
+        if (m.getDataStructureType() == CommandTypes.ACTIVEMQ_BLOB_MESSAGE) {
+            ((ActiveMQBlobMessage) m).setBlobDownloader(new BlobDownloader(session.getBlobTransferPolicy()));
         }
         if (m.getDataStructureType() == CommandTypes.ACTIVEMQ_OBJECT_MESSAGE) {
-            ((ActiveMQObjectMessage)m).setTrustAllPackages(session.getConnection().isTrustAllPackages());
-            ((ActiveMQObjectMessage)m).setTrustedPackages(session.getConnection().getTrustedPackages());
+            ((ActiveMQObjectMessage) m).setTrustAllPackages(session.getConnection().isTrustAllPackages());
+            ((ActiveMQObjectMessage) m).setTrustedPackages(session.getConnection().getTrustedPackages());
         }
         if (transformer != null) {
             Message transformedMessage = transformer.consumerTransform(session, this, m);
@@ -624,7 +615,7 @@ public class ActiveMQMessageConsumer implements MessageAvailableConsumer, StatsC
     /**
      * Receives the next message that arrives within the specified timeout
      * interval.
-     * <P>
+     * <p>
      * This call blocks until a message arrives, the timeout expires, or this
      * message consumer is closed. A <CODE>timeout</CODE> of zero never
      * expires, and the call blocks indefinitely.
@@ -632,8 +623,9 @@ public class ActiveMQMessageConsumer implements MessageAvailableConsumer, StatsC
      * @param timeout the timeout value (in milliseconds), a time out of zero
      *                never expires.
      * @return the next message produced for this message consumer, or null if
-     *         the timeout expires or this message consumer is concurrently
-     *         closed
+     * the timeout expires or this message consumer is concurrently
+     * closed
+     * 接收消息设置超时时间
      */
     @Override
     public Message receive(long timeout) throws JMSException {
@@ -668,9 +660,9 @@ public class ActiveMQMessageConsumer implements MessageAvailableConsumer, StatsC
      * Receives the next message if one is immediately available.
      *
      * @return the next message produced for this message consumer, or null if
-     *         one is not available
+     * one is not available
      * @throws JMSException if the JMS provider fails to receive the next
-     *                 message due to some internal error.
+     *                      message due to some internal error.
      */
     @Override
     public Message receiveNoWait() throws JMSException {
@@ -697,19 +689,19 @@ public class ActiveMQMessageConsumer implements MessageAvailableConsumer, StatsC
 
     /**
      * Closes the message consumer.
-     * <P>
+     * <p>
      * Since a provider may allocate some resources on behalf of a <CODE>
      * MessageConsumer</CODE>
      * outside the Java virtual machine, clients should close them when they are
      * not needed. Relying on garbage collection to eventually reclaim these
      * resources may not be timely enough.
-     * <P>
+     * <p>
      * This call blocks until a <CODE>receive</CODE> or message listener in
      * progress has completed. A blocked message consumer <CODE>receive </CODE>
      * call returns null when this message consumer is closed.
      *
      * @throws JMSException if the JMS provider fails to close the consumer due
-     *                 to some internal error.
+     *                      to some internal error.
      */
     @Override
     public void close() throws JMSException {
@@ -779,7 +771,7 @@ public class ActiveMQMessageConsumer implements MessageAvailableConsumer, StatsC
     void deliverAcks() {
         MessageAck ack = null;
         if (deliveryingAcknowledgements.compareAndSet(false, true)) {
-            synchronized(deliveredMessages) {
+            synchronized (deliveredMessages) {
                 if (isAutoAcknowledgeEach()) {
                     ack = makeAckForAllDeliveredMessages(MessageAck.STANDARD_ACK_TYPE);
                     if (ack != null) {
@@ -804,7 +796,7 @@ public class ActiveMQMessageConsumer implements MessageAvailableConsumer, StatsC
                     @Override
                     public void run() {
                         try {
-                            session.sendAck(ackToSend,true);
+                            session.sendAck(ackToSend, true);
                         } catch (JMSException e) {
                             LOG.error(getConsumerId() + " failed to delivered acknowledgements", e);
                         } finally {
@@ -852,7 +844,7 @@ public class ActiveMQMessageConsumer implements MessageAvailableConsumer, StatsC
                 }
             }
             if (!session.isTransacted()) {
-                synchronized(deliveredMessages) {
+                synchronized (deliveredMessages) {
                     deliveredMessages.clear();
                 }
             }
@@ -914,7 +906,7 @@ public class ActiveMQMessageConsumer implements MessageAvailableConsumer, StatsC
         md.setDeliverySequenceId(session.getNextDeliveryId());
         lastDeliveredSequenceId = md.getMessage().getMessageId().getBrokerSequenceId();
         if (!isAutoAcknowledgeBatch()) {
-            synchronized(deliveredMessages) {
+            synchronized (deliveredMessages) {
                 deliveredMessages.addFirst(md);
             }
             if (session.getTransacted()) {
@@ -940,6 +932,7 @@ public class ActiveMQMessageConsumer implements MessageAvailableConsumer, StatsC
         if (unconsumedMessages.isClosed()) {
             return;
         }
+        //设置消息超时
         if (messageExpired) {
             acknowledge(md, MessageAck.EXPIRED_ACK_TYPE);
             stats.getExpiredMessageCount().increment();
@@ -956,6 +949,7 @@ public class ActiveMQMessageConsumer implements MessageAvailableConsumer, StatsC
 
                                 // AMQ-3956 evaluate both expired and normal msgs as
                                 // otherwise consumer may get stalled
+                                // AMQ-3956评估过期和正常消息，否则消费者可能会停滞不前
                                 if (ackCounter + deliveredCounter >= (info.getPrefetchSize() * .65) || (optimizeAcknowledgeTimeOut > 0 && System.currentTimeMillis() >= (optimizeAckTimestamp + optimizeAcknowledgeTimeOut))) {
                                     MessageAck ack = makeAckForAllDeliveredMessages(MessageAck.STANDARD_ACK_TYPE);
                                     if (ack != null) {
@@ -970,6 +964,9 @@ public class ActiveMQMessageConsumer implements MessageAvailableConsumer, StatsC
                                     // we won't sent standard acks with every msg just
                                     // because the deliveredCounter just below
                                     // 0.5 * prefetch as used in ackLater()
+                                    // 当有任何消息时，进一步优化发送过期消息的确认。
+                                    // 这会将deliverCounter重置为0，这样我们就不会为每个msg发送标准的ack，
+                                    // 因为expertCounter只是在ackLater（）中使用的低于0.5 *的预取
                                     if (pendingAck != null && deliveredCounter > 0) {
                                         session.sendAck(pendingAck);
                                         pendingAck = null;
@@ -978,7 +975,7 @@ public class ActiveMQMessageConsumer implements MessageAvailableConsumer, StatsC
                                 }
                             } else {
                                 MessageAck ack = makeAckForAllDeliveredMessages(MessageAck.STANDARD_ACK_TYPE);
-                                if (ack!=null) {
+                                if (ack != null) {
                                     deliveredMessages.clear();
                                     session.sendAck(ack);
                                 }
@@ -989,16 +986,15 @@ public class ActiveMQMessageConsumer implements MessageAvailableConsumer, StatsC
                 }
             } else if (isAutoAcknowledgeBatch()) {
                 ackLater(md, MessageAck.STANDARD_ACK_TYPE);
-            } else if (session.isClientAcknowledge()||session.isIndividualAcknowledge()) {
-                boolean messageUnackedByConsumer = false;
+            } else if (session.isClientAcknowledge() || session.isIndividualAcknowledge()) {
+                boolean messageUnackedByConsumer;
                 synchronized (deliveredMessages) {
                     messageUnackedByConsumer = deliveredMessages.contains(md);
                 }
                 if (messageUnackedByConsumer) {
                     ackLater(md, MessageAck.DELIVERED_ACK_TYPE);
                 }
-            }
-            else {
+            } else {
                 throw new IllegalStateException("Invalid session state.");
             }
         }
@@ -1007,6 +1003,9 @@ public class ActiveMQMessageConsumer implements MessageAvailableConsumer, StatsC
     /**
      * Creates a MessageAck for all messages contained in deliveredMessages.
      * Caller should hold the lock for deliveredMessages.
+     * <p>
+     * 为deliverMessages中包含的所有消息创建MessageAck。
+     * 调用者应该为deliverMessages保持锁定。
      *
      * @param type Ack-Type (i.e. MessageAck.STANDARD_ACK_TYPE)
      * @return <code>null</code> if nothing to ack.
@@ -1028,23 +1027,28 @@ public class ActiveMQMessageConsumer implements MessageAvailableConsumer, StatsC
 
         // Don't acknowledge now, but we may need to let the broker know the
         // consumer got the message to expand the pre-fetch window
+        // 现在不要承认，但我们可能需要让经纪人知道消费者得到消息以扩展预取窗口
+        //有事务id则进行事务注册，要么失败，要么成功
         if (session.getTransacted()) {
             registerSync();
         }
 
+        //发送msg的数量增加
         deliveredCounter++;
 
-        synchronized(deliveredMessages) {
+        synchronized (deliveredMessages) {
             MessageAck oldPendingAck = pendingAck;
             pendingAck = new MessageAck(md, ackType, deliveredCounter);
             pendingAck.setTransactionId(session.getTransactionContext().getTransactionId());
-            if( oldPendingAck==null ) {
+            if (oldPendingAck == null) {
                 pendingAck.setFirstMessageId(pendingAck.getLastMessageId());
-            } else if ( oldPendingAck.getAckType() == pendingAck.getAckType() ) {
+            } else if (oldPendingAck.getAckType() == pendingAck.getAckType()) {
                 pendingAck.setFirstMessageId(oldPendingAck.getFirstMessageId());
             } else {
                 // old pending ack being superseded by ack of another type, if is is not a delivered
                 // ack and hence important, send it now so it is not lost.
+                // 旧的待定ack被另一种类型的ack取代，如果不是已交付的ack，
+                // 因此很重要，现在发送它以便它不会丢失。
                 if (!oldPendingAck.isDeliveredAck()) {
                     LOG.debug("Sending old pending ack {}, new pending: {}", oldPendingAck, pendingAck);
                     session.sendAck(oldPendingAck);
@@ -1054,16 +1058,22 @@ public class ActiveMQMessageConsumer implements MessageAvailableConsumer, StatsC
             }
             // AMQ-3956 evaluate both expired and normal msgs as
             // otherwise consumer may get stalled
+            // AMQ-3956评估过期和正常消息，否则消费者可能会停滞不前
             if ((0.5 * info.getPrefetchSize()) <= (deliveredCounter + ackCounter - additionalWindowSize)) {
                 LOG.debug("ackLater: sending: {}", pendingAck);
                 session.sendAck(pendingAck);
-                pendingAck=null;
+                pendingAck = null;
                 deliveredCounter = 0;
                 additionalWindowSize = 0;
             }
         }
     }
 
+    /**
+     * 事务的确认机制(同步注册)
+     *
+     * @throws JMSException
+     */
     private void registerSync() throws JMSException {
         session.doStartTransaction();
         if (!synchronizationRegistered) {
@@ -1074,7 +1084,7 @@ public class ActiveMQMessageConsumer implements MessageAvailableConsumer, StatsC
                     if (transactedIndividualAck) {
                         clearDeliveredList();
                         waitForRedeliveries();
-                        synchronized(deliveredMessages) {
+                        synchronized (deliveredMessages) {
                             rollbackOnFailedRecoveryRedelivery();
                         }
                     } else {
@@ -1102,13 +1112,16 @@ public class ActiveMQMessageConsumer implements MessageAvailableConsumer, StatsC
      * Acknowledge all the messages that have been delivered to the client up to
      * this point.
      *
+     * 确认已交付给客户端的所有消息到这点。
+     *
      * @throws JMSException
      */
     public void acknowledge() throws JMSException {
         clearDeliveredList();
         waitForRedeliveries();
-        synchronized(deliveredMessages) {
+        synchronized (deliveredMessages) {
             // Acknowledge all messages so far.
+            // 目前确认的消息
             MessageAck ack = makeAckForAllDeliveredMessages(MessageAck.STANDARD_ACK_TYPE);
             if (ack == null) {
                 return; // no msgs
@@ -1123,7 +1136,7 @@ public class ActiveMQMessageConsumer implements MessageAvailableConsumer, StatsC
             pendingAck = null;
             session.sendAck(ack);
 
-            // Adjust the counters
+            // Adjust the counters 调整计数器
             deliveredCounter = Math.max(0, deliveredCounter - deliveredMessages.size());
             additionalWindowSize = Math.max(0, additionalWindowSize - deliveredMessages.size());
 
@@ -1139,9 +1152,9 @@ public class ActiveMQMessageConsumer implements MessageAvailableConsumer, StatsC
             int numberNotReplayed;
             do {
                 numberNotReplayed = 0;
-                synchronized(deliveredMessages) {
+                synchronized (deliveredMessages) {
                     if (previouslyDeliveredMessages != null) {
-                        for (Entry<MessageId, Boolean> entry: previouslyDeliveredMessages.entrySet()) {
+                        for (Entry<MessageId, Boolean> entry : previouslyDeliveredMessages.entrySet()) {
                             if (!entry.getValue()) {
                                 numberNotReplayed++;
                             }
@@ -1150,9 +1163,9 @@ public class ActiveMQMessageConsumer implements MessageAvailableConsumer, StatsC
                 }
                 if (numberNotReplayed > 0) {
                     LOG.info("waiting for redelivery of {} in transaction: {}, to consumer: {}",
-                             numberNotReplayed, this.getConsumerId(), previouslyDeliveredMessages.transactionId);
+                            numberNotReplayed, this.getConsumerId(), previouslyDeliveredMessages.transactionId);
                     try {
-                        Thread.sleep(Math.max(500, failoverRedeliveryWaitPeriod/4));
+                        Thread.sleep(Math.max(500, failoverRedeliveryWaitPeriod / 4));
                     } catch (InterruptedException outOfhere) {
                         break;
                     }
@@ -1165,27 +1178,34 @@ public class ActiveMQMessageConsumer implements MessageAvailableConsumer, StatsC
      * called with deliveredMessages locked
      */
     private void rollbackOnFailedRecoveryRedelivery() throws JMSException {
+        //起先发送的消息不为null
         if (previouslyDeliveredMessages != null) {
             // if any previously delivered messages was not re-delivered, transaction is invalid and must rollback
             // as messages have been dispatched else where.
+            //如果未重新传递任何先前传递的消息，则事务无效，并且必须在消息已分派到其他地方时回滚。
             int numberNotReplayed = 0;
-            for (Entry<MessageId, Boolean> entry: previouslyDeliveredMessages.entrySet()) {
+            for (Entry<MessageId, Boolean> entry : previouslyDeliveredMessages.entrySet()) {
                 if (!entry.getValue()) {
                     numberNotReplayed++;
                     LOG.debug("previously delivered message has not been replayed in transaction: {}, messageId: {}",
-                              previouslyDeliveredMessages.transactionId, entry.getKey());
+                            previouslyDeliveredMessages.transactionId, entry.getKey());
                 }
             }
             if (numberNotReplayed > 0) {
                 String message = "rolling back transaction ("
-                    + previouslyDeliveredMessages.transactionId + ") post failover recovery. " + numberNotReplayed
-                    + " previously delivered message(s) not replayed to consumer: " + this.getConsumerId();
+                        + previouslyDeliveredMessages.transactionId + ") post failover recovery. " + numberNotReplayed
+                        + " previously delivered message(s) not replayed to consumer: " + this.getConsumerId();
                 LOG.warn(message);
                 throw new TransactionRolledBackException(message);
             }
         }
     }
 
+    /**
+     * 匹配单条消息确认
+     * @param md
+     * @throws JMSException
+     */
     void acknowledge(MessageDispatch md) throws JMSException {
         acknowledge(md, MessageAck.INDIVIDUAL_ACK_TYPE);
     }
@@ -1196,7 +1216,7 @@ public class ActiveMQMessageConsumer implements MessageAvailableConsumer, StatsC
             ack.setFirstMessageId(ack.getLastMessageId());
         }
         session.sendAck(ack);
-        synchronized(deliveredMessages){
+        synchronized (deliveredMessages) {
             deliveredMessages.remove(md);
         }
     }
@@ -1215,23 +1235,26 @@ public class ActiveMQMessageConsumer implements MessageAvailableConsumer, StatsC
             if (optimizeAcknowledge) {
                 // remove messages read but not acked at the broker yet through
                 // optimizeAcknowledge
+                //通过optimizeAcknowledge删除已读取但未在代理处获取的消息
                 if (!this.info.isBrowser()) {
-                    synchronized(deliveredMessages) {
+                    synchronized (deliveredMessages) {
                         for (int i = 0; (i < deliveredMessages.size()) && (i < ackCounter); i++) {
                             // ensure we don't filter this as a duplicate
+                            //确保我们不会将其作为重复过滤
                             MessageDispatch md = deliveredMessages.removeLast();
                             session.connection.rollbackDuplicate(this, md.getMessage());
                         }
                     }
                 }
             }
-            synchronized(deliveredMessages) {
+            synchronized (deliveredMessages) {
                 rollbackPreviouslyDeliveredAndNotRedelivered();
                 if (deliveredMessages.isEmpty()) {
                     return;
                 }
 
                 // use initial delay for first redelivery
+                // 使用初始延迟进行首次重新传递
                 MessageDispatch lastMd = deliveredMessages.getFirst();
                 final int currentRedeliveryCount = lastMd.getMessage().getRedeliveryCounter();
                 if (currentRedeliveryCount > 0) {
@@ -1241,7 +1264,7 @@ public class ActiveMQMessageConsumer implements MessageAvailableConsumer, StatsC
                 }
                 MessageId firstMsgId = deliveredMessages.getLast().getMessage().getMessageId();
 
-                for (Iterator<MessageDispatch> iter = deliveredMessages.iterator(); iter.hasNext();) {
+                for (Iterator<MessageDispatch> iter = deliveredMessages.iterator(); iter.hasNext(); ) {
                     MessageDispatch md = iter.next();
                     md.getMessage().onMessageRolledBack();
                     // ensure we don't filter this as a duplicate
@@ -1249,16 +1272,16 @@ public class ActiveMQMessageConsumer implements MessageAvailableConsumer, StatsC
                 }
 
                 if (redeliveryPolicy.getMaximumRedeliveries() != RedeliveryPolicy.NO_MAXIMUM_REDELIVERIES
-                    && lastMd.getMessage().getRedeliveryCounter() > redeliveryPolicy.getMaximumRedeliveries()) {
+                        && lastMd.getMessage().getRedeliveryCounter() > redeliveryPolicy.getMaximumRedeliveries()) {
                     // We need to NACK the messages so that they get sent to the
                     // DLQ.
                     // Acknowledge the last message.
 
                     MessageAck ack = new MessageAck(lastMd, MessageAck.POSION_ACK_TYPE, deliveredMessages.size());
                     ack.setFirstMessageId(firstMsgId);
-                    ack.setPoisonCause(new Throwable("Delivery[" + lastMd.getMessage().getRedeliveryCounter()  + "] exceeds redelivery policy limit:" + redeliveryPolicy
+                    ack.setPoisonCause(new Throwable("Delivery[" + lastMd.getMessage().getRedeliveryCounter() + "] exceeds redelivery policy limit:" + redeliveryPolicy
                             + ", cause:" + lastMd.getRollbackCause(), lastMd.getRollbackCause()));
-                    session.sendAck(ack,true);
+                    session.sendAck(ack, true);
                     // Adjust the window size.
                     additionalWindowSize = Math.max(0, additionalWindowSize - deliveredMessages.size());
                     redeliveryDelay = 0;
@@ -1272,7 +1295,7 @@ public class ActiveMQMessageConsumer implements MessageAvailableConsumer, StatsC
                     if (currentRedeliveryCount > 0) {
                         MessageAck ack = new MessageAck(lastMd, MessageAck.REDELIVERED_ACK_TYPE, deliveredMessages.size());
                         ack.setFirstMessageId(firstMsgId);
-                        session.sendAck(ack,true);
+                        session.sendAck(ack, true);
                     }
 
                     // stop the delivery of messages.
@@ -1280,7 +1303,7 @@ public class ActiveMQMessageConsumer implements MessageAvailableConsumer, StatsC
                         if (!unconsumedMessages.isClosed()) {
 
                             final LinkedList<MessageDispatch> pendingRedeliveries =
-                                new LinkedList<MessageDispatch>(deliveredMessages);
+                                    new LinkedList<MessageDispatch>(deliveredMessages);
 
                             Collections.reverse(pendingRedeliveries);
 
@@ -1293,7 +1316,7 @@ public class ActiveMQMessageConsumer implements MessageAvailableConsumer, StatsC
                                 public void run() {
                                     try {
                                         if (!unconsumedMessages.isClosed()) {
-                                            for(MessageDispatch dispatch : pendingRedeliveries) {
+                                            for (MessageDispatch dispatch : pendingRedeliveries) {
                                                 session.dispatch(dispatch);
                                             }
                                         }
@@ -1347,7 +1370,7 @@ public class ActiveMQMessageConsumer implements MessageAvailableConsumer, StatsC
      */
     private void rollbackPreviouslyDeliveredAndNotRedelivered() {
         if (previouslyDeliveredMessages != null) {
-            for (Entry<MessageId, Boolean> entry: previouslyDeliveredMessages.entrySet()) {
+            for (Entry<MessageId, Boolean> entry : previouslyDeliveredMessages.entrySet()) {
                 if (!entry.getValue()) {
                     LOG.trace("rollback non redelivered: {}" + entry.getKey());
                     removeFromDeliveredMessages(entry.getKey());
@@ -1418,11 +1441,13 @@ public class ActiveMQMessageConsumer implements MessageAvailableConsumer, StatsC
                         } else {
                             if (!unconsumedMessages.isRunning()) {
                                 // delayed redelivery, ensure it can be re delivered
+                                //延迟重新发送，确保能重新发送
                                 session.connection.rollbackDuplicate(this, md.getMessage());
                             }
 
                             if (md.getMessage() == null) {
                                 // End of browse or pull request timeout.
+                                // 进队列
                                 unconsumedMessages.enqueue(md);
                             } else {
                                 if (!consumeExpiredMessage(md)) {
@@ -1436,6 +1461,7 @@ public class ActiveMQMessageConsumer implements MessageAvailableConsumer, StatsC
 
                                     // Pull consumer needs to check if pull timed out and send
                                     // a new pull command if not.
+                                    //拉取一个消费者需要校验如果拉取的时间超时则新建一个新的命令，反之作废
                                     if (info.getCurrentPrefetchSize() == 0) {
                                         unconsumedMessages.enqueue(null);
                                     }
@@ -1444,6 +1470,7 @@ public class ActiveMQMessageConsumer implements MessageAvailableConsumer, StatsC
                         }
                     } else {
                         // deal with duplicate delivery
+                        // 处理冗余的消息发送
                         ConsumerId consumerWithPendingTransaction;
                         if (redeliveryExpectedInCurrentTransaction(md, true)) {
                             LOG.debug("{} tracking transacted redelivery {}", getConsumerId(), md.getMessage());
@@ -1489,7 +1516,7 @@ public class ActiveMQMessageConsumer implements MessageAvailableConsumer, StatsC
     }
 
     private ConsumerId redeliveryPendingInCompetingTransaction(MessageDispatch md) {
-        for (ActiveMQSession activeMQSession: session.connection.getSessions()) {
+        for (ActiveMQSession activeMQSession : session.connection.getSessions()) {
             for (ActiveMQMessageConsumer activeMQMessageConsumer : activeMQSession.consumers) {
                 if (activeMQMessageConsumer.redeliveryExpectedInCurrentTransaction(md, false)) {
                     return activeMQMessageConsumer.getConsumerId();
@@ -1514,13 +1541,13 @@ public class ActiveMQMessageConsumer implements MessageAvailableConsumer, StatsC
                                 previouslyDeliveredMessages.put(delivered.getMessage().getMessageId(), false);
                             }
                             LOG.debug("{} tracking existing transacted {} delivered list ({}) on transport interrupt",
-                                      getConsumerId(), previouslyDeliveredMessages.transactionId, deliveredMessages.size());
+                                    getConsumerId(), previouslyDeliveredMessages.transactionId, deliveredMessages.size());
                         } else {
                             if (session.isClientAcknowledge()) {
                                 LOG.debug("{} rolling back delivered list ({}) on transport interrupt", getConsumerId(), deliveredMessages.size());
                                 // allow redelivery
                                 if (!this.info.isBrowser()) {
-                                    for (MessageDispatch md: deliveredMessages) {
+                                    for (MessageDispatch md : deliveredMessages) {
                                         this.session.connection.rollbackDuplicate(this, md.getMessage());
                                     }
                                 }
@@ -1557,14 +1584,13 @@ public class ActiveMQMessageConsumer implements MessageAvailableConsumer, StatsC
     @Override
     public String toString() {
         return "ActiveMQMessageConsumer { value=" + info.getConsumerId() + ", started=" + started.get()
-               + " }";
+                + " }";
     }
 
     /**
      * Delivers a message to the message listener.
      *
      * @return true if another execution is needed.
-     *
      * @throws JMSException
      */
     public boolean iterate() {

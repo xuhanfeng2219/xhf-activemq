@@ -65,6 +65,7 @@ import org.slf4j.LoggerFactory;
  * A JMS provider should do its best to expire messages accurately; however, the
  * JMS API does not define the accuracy provided.
  *
+ * producer:消息生产者，业务的发起方，负责生产消息并传输给 Broker 。
  *
  * @see javax.jms.TopicPublisher
  * @see javax.jms.QueueSender
@@ -217,6 +218,10 @@ public class ActiveMQMessageProducer extends ActiveMQMessageProducerSupport impl
      *                 invalid destination.
      * @see javax.jms.Session#createProducer
      * @since 1.1
+     *
+     * producer的发送消息
+     *
+     * oncomplete是异常回调
      */
     @Override
     public void send(Destination destination, Message message, int deliveryMode, int priority, long timeToLive) throws JMSException {

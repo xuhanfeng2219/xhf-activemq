@@ -32,6 +32,8 @@ import org.apache.activemq.usage.SystemUsage;
 /**
  * Adapter to the actual persistence mechanism used with ActiveMQ
  *
+ * 适配器与ActiveMQ使用的实际持久性机制
+ *
  *
  */
 public interface PersistenceAdapter extends Service {

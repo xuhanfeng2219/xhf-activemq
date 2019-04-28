@@ -91,6 +91,11 @@ import org.apache.activemq.wireformat.WireFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * KahaDB，也是一种基于文件并具有支持事务的消息存储方式，
+ * 从5.3开始推荐使用 KahaDB 存储消息，
+ * 它提供了比 AMQ 消息存储更好的可扩展性和可恢复性。
+ */
 public class KahaDBStore extends MessageDatabase implements PersistenceAdapter, NoLocalSubscriptionAware {
     static final Logger LOG = LoggerFactory.getLogger(KahaDBStore.class);
     private static final int MAX_ASYNC_JOBS = BaseDestination.MAX_AUDIT_DEPTH;
@@ -216,6 +221,7 @@ public class KahaDBStore extends MessageDatabase implements PersistenceAdapter, 
     public void doStart() throws Exception {
         //configure the metadata before start, right now
         //this is just the open wire version
+        //在开始之前配置元数据，现在这只是开放式线程版本
         configureMetadata();
 
         super.doStart();
@@ -223,6 +229,7 @@ public class KahaDBStore extends MessageDatabase implements PersistenceAdapter, 
         if (brokerService != null) {
             // In case the recovered store used a different OpenWire version log a warning
             // to assist in determining why journal reads fail.
+            //如果恢复的存储使用不同的OpenWire版本日志，则会发出警告，以帮助确定日记读取失败的原因。
             if (metadata.openwireVersion != brokerService.getStoreOpenWireVersion()) {
                 LOG.warn("Existing Store uses a different OpenWire version[{}] " +
                          "than the version configured[{}] reverting to the version " +
@@ -240,6 +247,7 @@ public class KahaDBStore extends MessageDatabase implements PersistenceAdapter, 
         this.globalTopicSemaphore = new Semaphore(getMaxAsyncJobs());
         this.asyncQueueJobQueue = new LinkedBlockingQueue<Runnable>(getMaxAsyncJobs());
         this.asyncTopicJobQueue = new LinkedBlockingQueue<Runnable>(getMaxAsyncJobs());
+        //queue的并发发送，每个queue job都是异步的
         this.queueExecutor = new StoreTaskExecutor(1, asyncExecutorMaxThreads, 0L, TimeUnit.MILLISECONDS,
             asyncQueueJobQueue, new ThreadFactory() {
                 @Override
@@ -788,10 +796,10 @@ public class KahaDBStore extends MessageDatabase implements PersistenceAdapter, 
         @Override
         public void acknowledge(ConnectionContext context, String clientId, String subscriptionName,
                                 MessageId messageId, MessageAck ack) throws IOException {
-            String subscriptionKey = subscriptionKey(clientId, subscriptionName).toString();
+            String subscriptionKey = subscriptionKey(clientId, subscriptionName);
             if (isConcurrentStoreAndDispatchTopics()) {
                 AsyncJobKey key = new AsyncJobKey(messageId, getDestination());
-                StoreTopicTask task = null;
+                StoreTopicTask task;
                 synchronized (asyncTaskMap) {
                     task = (StoreTopicTask) asyncTaskMap.get(key);
                 }

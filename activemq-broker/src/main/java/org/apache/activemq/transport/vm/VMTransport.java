@@ -42,6 +42,9 @@ import org.slf4j.LoggerFactory;
 
 /**
  * A Transport implementation that uses direct method invocations.
+ *
+ * vm：允许客户端和消息服务器直接在 VM 内部通信，采用的连接不是 Socket 连接，
+ * 而是直接的虚拟机本地方法调用，从而避免网络传输的开销。应用场景仅限于服务器和客户端在同一 JVM 中。
  */
 public class VMTransport implements Transport, Task {
     protected static final Logger LOG = LoggerFactory.getLogger(VMTransport.class);
